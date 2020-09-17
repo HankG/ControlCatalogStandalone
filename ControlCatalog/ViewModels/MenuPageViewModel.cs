@@ -1,19 +1,39 @@
 ﻿using System.Collections.Generic;
 using System.Reactive;
+using System.Reactive.Linq;
 using System.Threading.Tasks;
 using Avalonia.Controls;
+using Avalonia.VisualTree;
 using ReactiveUI;
 
 namespace ControlCatalog.ViewModels
 {
     public class MenuPageViewModel
     {
+        public Control View { get; set; }
         public MenuPageViewModel()
         {
             OpenCommand = ReactiveCommand.CreateFromTask(Open);
-            SaveCommand = ReactiveCommand.Create(Save);
+            SaveCommand = ReactiveCommand.Create(Save, Observable.Return(false));
             OpenRecentCommand = ReactiveCommand.Create<string>(OpenRecent);
 
+            var recentItems = new[]
+            {
+                new MenuItemViewModel
+                {
+                    Header = "File1.txt",
+                    Command = OpenRecentCommand,
+                    CommandParameter = @"c:\foo\File1.txt"
+                },
+                new MenuItemViewModel
+                {
+                    Header = "File2.txt",
+                    Command = OpenRecentCommand,
+                    CommandParameter = @"c:\foo\File2.txt"
+                },
+            };
+
+            RecentItems = recentItems;
             MenuItems = new[]
             {
                 new MenuItemViewModel
@@ -21,27 +41,13 @@ namespace ControlCatalog.ViewModels
                     Header = "_File",
                     Items = new[]
                     {
-                        new MenuItemViewModel { Header = "_Open...", Command = OpenCommand },
+                        new MenuItemViewModel { Header = "O_pen...", Command = OpenCommand },
                         new MenuItemViewModel { Header = "Save", Command = SaveCommand },
                         new MenuItemViewModel { Header = "-" },
                         new MenuItemViewModel
                         {
                             Header = "Recent",
-                            Items = new[]
-                            {
-                                new MenuItemViewModel
-                                {
-                                    Header = "File1.txt",
-                                    Command = OpenRecentCommand,
-                                    CommandParameter = @"c:\foo\File1.txt"
-                                },
-                                new MenuItemViewModel
-                                {
-                                    Header = "File2.txt",
-                                    Command = OpenRecentCommand,
-                                    CommandParameter = @"c:\foo\File2.txt"
-                                },
-                            }
+                            Items = recentItems
                         },
                     }
                 },
@@ -58,14 +64,18 @@ namespace ControlCatalog.ViewModels
         }
 
         public IReadOnlyList<MenuItemViewModel> MenuItems { get; set; }
+        public IReadOnlyList<MenuItemViewModel> RecentItems { get; set; }
         public ReactiveCommand<Unit, Unit> OpenCommand { get; }
         public ReactiveCommand<Unit, Unit> SaveCommand { get; }
         public ReactiveCommand<string, Unit> OpenRecentCommand { get; }
 
         public async Task Open()
         {
+            var window = View?.GetVisualRoot() as Window;
+            if (window == null)
+                return;
             var dialog = new OpenFileDialog();
-            var result = await dialog.ShowAsync(App.Current.MainWindow);
+            var result = await dialog.ShowAsync(window);
 
             if (result != null)
             {
